@@ -1,69 +1,73 @@
 package br.ufal.ic.wsn.tmcp.simulator;
 
 public class Sensor<T> implements Runnable {
-		
+
 	/**
 	 * Sensor's unique id.
 	 */
 	public final long  id;
+
 	/**
 	 * X position on the environment.
 	 */
 	public final double x;
+
 	/**
 	 * Y position on the environment.
 	 */
 	public final double y;
+
 	/**
 	 * Transmission radius.
 	 */
 	public final double radius;
+
 	/**
-	 * The application that runs in the sensor.
+	 * The "software" running in the sensor.
 	 */
-	private ISensorController<T> controller; 
-	
-	public Sensor(int x, int y, int radius) throws Exception {
-		this(null, x, y, radius);
-	}
-	
-	public Sensor(ISensorController<T> controller, int x, int y, int radius) throws Exception {
-		this.id = Sensors.getNextID();
+	private ISensorController<T> controller;
+
+	public Sensor(
+			long id,
+			double x,
+			double y,
+			double radius
+	) throws Exception {
+		this.id = id;
 		this.x  = x;
 		this.y  = y;
 		this.radius = radius;
-		this.controller = controller;
 		
-		if (radius == 0) {
-			throw new Exception("The radius must be != 0.");
+		if (radius <= 0) {
+			throw new Exception("The radius must be > 0.");
 		}
 	}
-	
+
+	public void setController(ISensorController<T> controller) {
+		this.controller = controller;
+	}
+
 	/**
-	 * Receives a message and passes it to he controller. If
-	 * the controller is null it is considered a do-nothing-controller.
+	 * Receives a message from a channel.
 	 * 
 	 * @param sender the sensor the sent the message.
 	 * @param message the payload.
 	 */
-	void receive(Sensor<T> sender, T message) {
-		if(sender != null && message != null) {
+	public void receive(Sensor<T> sender, T message) {
+		if (controller != null) {
 			controller.receive(sender, message);
 		}
 	}
 
-	/**
-	 * Executes the controller. If the controller is null it is
-	 * considered a do-nothing-controller.
-	 */
+	public boolean equals(Sensor<T> s) {
+		return s.id == id;
+	}
+
 	@Override
 	public void run() {
 		if (controller != null) {
-			controller.run();
+			// TODO
+			controller.execute(null);
 		}
-	}
-	
-	public boolean equals(Sensor<T> s) {
-		return s.id == id;
 	}
 }
