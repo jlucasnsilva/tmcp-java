@@ -1,8 +1,11 @@
 package br.ufal.ic.wsn.tmcp.simulator;
 
 import java.awt.geom.Point2D;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -10,6 +13,7 @@ import java.util.concurrent.Executors;
 
 import org.graphstream.algorithm.generator.Generator;
 import org.graphstream.algorithm.generator.RandomEuclideanGenerator;
+import org.graphstream.graph.Edge;
 import org.graphstream.graph.Graph;
 import org.graphstream.graph.Node;
 import org.graphstream.graph.implementations.SingleGraph;
@@ -38,17 +42,9 @@ public final class Simulation<T> implements Runnable {
 	
 	private Graph graph;
 	
-	private Map<String, Sensor<T>> sensors;
-	
-	private Map<String, Set<Sensor<T>>> neighborhood;
-	
-	private Map<String, Set<Sensor<T>>> intNeighborhood;
-	
 	private ExecutorService executor;
 	
-	private String rootID;
-	
-	private Sensor<T> root;
+	private Node root;
 	
 	public Simulation(String name, int worldSize, int nOfChannels, int nOfSensors, double commRadius, double intCoefficient) throws Exception {
 		if (worldSize < 1) {
@@ -82,15 +78,11 @@ public final class Simulation<T> implements Runnable {
 		this.commRadius  = commRadius;
 		this.intCoefficient = intCoefficient;
 		this.executor    = Executors.newCachedThreadPool();
-		this.neighborhood    = new HashMap<>();
-		this.intNeighborhood = new HashMap<>();
+		this.graph       = new SingleGraph(name);
 	}
 
 	public void build() throws Exception {
 		Generator gen = new RandomEuclideanGenerator();
-		
-		graph   = new SingleGraph(name);
-		sensors = new HashMap<>();
 		
 		gen.addSink(graph);
 		gen.begin();
@@ -99,81 +91,91 @@ public final class Simulation<T> implements Runnable {
 		}
 		gen.end();
 		
-		rootID = graph.getNode(0);
-		root   = graph.getNode(0);
+		root = graph.getNode(0);
 		
-		createNeighborhoods();
-		createSensors();
-		setupNeighborhoods();
+		setAttributes();
+		setIntSets();
 		makeFatTree();
+		greedyPMIT();
+	}
+	
+	private void setAttributes() {
+		for (Node n : graph) {
+			double x = n.getAttribute("x");
+			double y = n.getAttribute("y");
+			Set<Node> ps = new HashSet<>();
+			
+			n.setAttribute("world_x", x * worldSize);
+			n.setAttribute("world_y", y * worldSize);
+			n.setAttribute("tree_height", Integer.MAX_VALUE);
+			n.setAttribute("parents", ps);
+			n.setAttribute("channel", (int) 0);
+		}
+		
+		int interference = 0;
+		for (int i = 0; i < nOfChannels; i++) {
+			graph.setAttribute("chan_" + i, interference);
+		}
+	}
+	
+	private void setIntSets() {
+		int count = graph.getNodeCount();
+		double intRadius = commRadius * intCoefficient;
+		
+		// i = 0 is the root.
+		for (int i = 1; i < count; i++) {
+			Node n = graph.getNode(i);
+			double nx = n.getAttribute("world_x");
+			double ny = n.getAttribute("world_y");
+			
+			for (int j = i + 1; j < count; j++) {
+				Node m = graph.getNode(j);
+				double mx = m.getAttribute("world_x");
+				double my = m.getAttribute("world_y");
+				
+				if (Point2D.distance(nx, ny, mx, my) <= intRadius) {
+					Set<Node> sn = n.getAttribute("interference_set");
+					Set<Node> sm = m.getAttribute("interference_set");
+					
+					sn.add(m);
+					sm.add(n);
+				}
+			}
+		}
 	}
 	
 	private void makeFatTree() {
-		root.setHeight(0);
+		root.setAttribute("tree_height", (int) 0);
+		Deque<Node> verge = new ArrayDeque<>(graph.getNodeCount());
 		
-		for (Sensor<T> s : sensors.values()) {
-			for (Sensor<T> o : s.getNeighbors()) {
-				if ( s.getHeight() < o.getHeight() ) {
-					o.setHeight(1 + s.getHeight());
-				}
-			}
-		}
-	}
-
-	private void setupNeighborhoods() {
-		double intRadius = commRadius * intCoefficient;
+		verge.addLast(root);
 		
-		/*
-		 * TODO graph.getNode(0) is the Sink/BaseStation
-		 */
-		for (Sensor<T> s : sensors.values()) {
-			// TODO do the same thing with the sink/base station
-			for (Sensor<T> o : sensors.values()) {
-				if ( Point2D.distance(s.x, s.y, o.x, o.y) <= intRadius ) {
-					Set<Sensor<T>> sins = intNeighborhood.get(s.id);
-					Set<Sensor<T>> oins = intNeighborhood.get(o.id);
-					
-					sins.add( o );
-					oins.add( s );
-					// if it's within communication range:
-					if ( Point2D.distance(s.x, s.y, o.x, o.y) <= commRadius ) {
-						Set<Sensor<T>> sns = neighborhood.get(s.id);
-						Set<Sensor<T>> ons = neighborhood.get(o.id);
-						
-						sns.add( o );
-						ons.add( s );
-					}
-				}
-			}
-		}
-	}
-
-	private void createSensors() throws Exception {
-		for (Node n : graph) {
-			double x = worldSize * (double) n.getAttribute("x");
-			double y = worldSize * (double) n.getAttribute("y");
-			String k = n.getId();
-			Sensor<T> s;
+		for (Node n : verge) {
+			int nh = n.getAttribute("tree_height");
 			
-			s = new Sensor<>(k, x, y, commRadius, n, neighborhood.get(k), intNeighborhood.get(k));
-			sensors.put(k, s);
-			n.addAttribute("sensor", s);
+			for (Edge e : n.getEdgeSet()) {
+				Node m = e.getOpposite(n);
+				int mh = m.getAttribute("tree_height");
+				Set<Node> mParents = null;
+				
+				
+				if (mh > nh) {
+					m.setAttribute("tree_height", nh + 1);
+					mParents = m.getAttribute("parents");
+					
+					mParents.add(n);
+					verge.addLast(m);
+				}
+			}
 		}
 	}
-
-	private void createNeighborhoods() {
-		for (Node n : graph) {
-			neighborhood.put(n.getId(), new HashSet<>());
-			intNeighborhood.put(n.getId(), new HashSet<>());
-		}
+	
+	private void greedyPMIT() {
+		
 	}
 
 	@Override
 	public void run() {
-		for (Sensor<T> s : sensors.values()) {
-			executor.execute(s);
-		}
 		
-		while (true) ;
 	}
 } // end of the class
