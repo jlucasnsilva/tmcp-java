@@ -2,5 +2,6 @@ package br.ufal.ic.wsn.tmcp.simulator;
 
 public interface ISimulation {
 	public void build();
-	public void run();
+	public void algorithm();
+	public void simulate();
 }

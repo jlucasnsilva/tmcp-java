@@ -10,6 +10,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.graphstream.algorithm.generator.Generator;
+import org.graphstream.algorithm.generator.GridGenerator;
 import org.graphstream.algorithm.generator.RandomEuclideanGenerator;
 import org.graphstream.graph.Edge;
 import org.graphstream.graph.Graph;
@@ -72,6 +73,8 @@ public final class TmcpSimulation<T> implements ISimulation {
 	 */
 	private int treeHeight;
 	
+	private EGraphType gtype;
+	
 	/**
 	 * Creates new simulation using the TMCP algorithm.
 	 * 
@@ -83,7 +86,7 @@ public final class TmcpSimulation<T> implements ISimulation {
 	 * @param intCoefficient interference coefficient. (@code Interference radius = Interference coefficient * Communication Radius}.
 	 * @throws Exception thrown in case of malformed arguments.
 	 */
-	public TmcpSimulation(String name, int worldSize, int nOfChannels, int nOfSensors, double commRadius, double intCoefficient) throws Exception {
+	public TmcpSimulation(String name, EGraphType gtype, int worldSize, int nOfChannels, int nOfSensors, double commRadius, double intCoefficient) throws Exception {
 		if (worldSize < 1) {
 			throw new Exception("The world size must be > 0.");
 		}
@@ -116,21 +119,60 @@ public final class TmcpSimulation<T> implements ISimulation {
 		this.executor    = Executors.newCachedThreadPool();
 		this.graph       = new SingleGraph(name);
 		this.treeHeight  = 0;
+		this.gtype       = gtype;
 	}
 
 	/**
 	 * Set up the simulation.
 	 */
 	public void build() {
-		Generator gen = new RandomEuclideanGenerator();
+		generateGraph();
+		selectRoot();
+		setAttributes();
+		setIntSets();
+	}
+	
+	public void algorithm() {
+		makeFatTree();
+		System.out.println("Displaying the fat tree");
+		graph.display();
+		greedyPMIT();
+		System.out.println("Displaying the subtrees network");
+		graph.display();
+	}
+	
+	/**
+	 * Executes the simulation.
+	 */
+	@Override
+	public void simulate() {
 		
-		gen.addSink(graph);
-		gen.begin();
-		for (int i = 0; i < nOfSensors; i++) {
-			gen.nextEvents();
+	}
+	
+	/**
+	 * Creates a graph using the Random Euclidean Generator.
+	 */
+	private void generateGraph() {
+		if (gtype == EGraphType.RANDOM) {
+			graph = GraphBuilder.newRandom(nOfSensors, nOfChannels);
+		} else if (gtype == EGraphType.DOROGOVTSEV_MENDES) {
+			graph = GraphBuilder.newDorogvtsevMendes(nOfSensors, nOfChannels);
+		} else if (gtype == EGraphType.BARABASI_ALBERT) {
+			graph = GraphBuilder.newBarabasiAlbert(nOfSensors, nOfChannels);
+		} else if (gtype == EGraphType.GRID) {
+			graph = GraphBuilder.newGrid(nOfSensors, nOfChannels);
+		} else if (gtype == EGraphType.SMALL_WORLD) {
+			graph = GraphBuilder.newSmallWorld(nOfSensors, nOfChannels);
+		} else if (gtype == EGraphType.RANDOM_EUCLIDEAN) {
+			graph = GraphBuilder.newRandomEuclidean(nOfSensors, nOfChannels);
 		}
-		gen.end();
-		
+	}
+	
+	/**
+	 * Selects the node with the highest degree to
+	 * be the root (sink/base station).
+	 */
+	private void selectRoot() {
 		/*
 		 * Selects the node with the highest degree to
 		 * be the root (sink/base station).
@@ -141,11 +183,6 @@ public final class TmcpSimulation<T> implements ISimulation {
 				root = n;
 			}
 		}
-		
-		setAttributes();
-		setIntSets();
-		makeFatTree();
-		greedyPMIT();
 	}
 	
 	/**
@@ -181,6 +218,9 @@ public final class TmcpSimulation<T> implements ISimulation {
 		root.setAttribute("tree_height", (int) 0);
 		root.setAttribute("SINK");
 		root.setAttribute("ui.class", "channel_9");
+		root.setAttribute("ui.label", "SINK");
+		
+		graph.setAttribute("ui.stylesheet", Channels.STYLES);
 	}
 	
 	/**
@@ -189,16 +229,17 @@ public final class TmcpSimulation<T> implements ISimulation {
 	private void setIntSets() {
 		double intRadius = commRadius * intCoefficient;
 		
-		for (Node n : graph) {
-			for (Node m : graph) {
-				if ( !n.equals(m) ) {
-					if (dist(n, m) <= intRadius) {
-						Set<Node> sn = n.getAttribute("interference_set");
-						Set<Node> sm = m.getAttribute("interference_set");
-						
-						sn.add(m);
-						sm.add(n);
-					}
+		for (int i = 0; i < graph.getNodeCount(); i++) {
+			Node n = graph.getNode(i);
+			for (int j = 0; j < graph.getNodeCount(); j++) {
+				Node m = graph.getNode(j);
+				
+				if (dist(n, m) <= intRadius) {
+					Set<Node> sn = n.getAttribute("interference_set");
+					Set<Node> sm = m.getAttribute("interference_set");
+					
+					sn.add(m);
+					sm.add(n);
 				}
 			}
 		}
@@ -209,8 +250,8 @@ public final class TmcpSimulation<T> implements ISimulation {
 	 * in which every node might have more than one parent.
 	 */
 	private void makeFatTree() {
-		List<Node> verge = new ArrayList<>(graph.getNodeCount());
-		Set<Node> vergeSet = new HashSet<>();
+		List<Node> verge    = new ArrayList<>(graph.getNodeCount());
+		Set<Node>  vergeSet = new HashSet<>();
 		
 		verge.add(root);
 		vergeSet.add(root);
@@ -235,6 +276,8 @@ public final class TmcpSimulation<T> implements ISimulation {
 					mParents = m.getAttribute("parents");
 					treeHeight = nh + 1;
 					mParents.add(n);
+					
+					n.getEdgeBetween(m).setAttribute("ui.class", "channel_1");
 				}
 			}
 		}
@@ -407,13 +450,5 @@ public final class TmcpSimulation<T> implements ISimulation {
 	
 	public Graph getGraph() {
 		return graph;
-	}
-	
-	/**
-	 * Executes the simulation.
-	 */
-	@Override
-	public void run() {
-		
 	}
 } // end of the class
