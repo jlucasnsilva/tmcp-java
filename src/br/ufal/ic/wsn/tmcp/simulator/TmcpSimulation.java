@@ -148,6 +148,9 @@ public final class TmcpSimulation<T> implements ISimulation {
 		greedyPMIT();
 	}
 	
+	/**
+	 * Set up basic attributes of the nodes, node and the graph.
+	 */
 	private void setAttributes() {
 		for (Node n : graph) {
 			double x = n.getAttribute("x");
@@ -155,8 +158,8 @@ public final class TmcpSimulation<T> implements ISimulation {
 			Set<Node> ps = new HashSet<>();
 			Set<Node> is = new HashSet<>();
 			
-			n.setAttribute("world_x", x * worldSize);
-			n.setAttribute("world_y", y * worldSize);
+			n.setAttribute("world_x", x * worldSize); // As x and y in the range [0,1] they
+			n.setAttribute("world_y", y * worldSize); // are converted to world positions
 			n.setAttribute("tree_height", Integer.MAX_VALUE);
 			n.setAttribute("parents", ps);
 			n.setAttribute("channel", 0);
@@ -180,19 +183,16 @@ public final class TmcpSimulation<T> implements ISimulation {
 		root.setAttribute("ui.class", "channel_9");
 	}
 	
+	/**
+	 * Calculates the interference sets of each node. 
+	 */
 	private void setIntSets() {
 		double intRadius = commRadius * intCoefficient;
 		
 		for (Node n : graph) {
-			double nx = n.getAttribute("world_x");
-			double ny = n.getAttribute("world_y");
-			
 			for (Node m : graph) {
 				if ( !n.equals(m) ) {
-					double mx = m.getAttribute("world_x");
-					double my = m.getAttribute("world_y");
-					
-					if (Point2D.distance(nx, ny, mx, my) <= intRadius) {
+					if (dist(n, m) <= intRadius) {
 						Set<Node> sn = n.getAttribute("interference_set");
 						Set<Node> sm = m.getAttribute("interference_set");
 						
@@ -204,6 +204,10 @@ public final class TmcpSimulation<T> implements ISimulation {
 		}
 	}
 	
+	/**
+	 * Generates the fat tree of the network. A fat tree is a tree
+	 * in which every node might have more than one parent.
+	 */
 	private void makeFatTree() {
 		List<Node> verge = new ArrayList<>(graph.getNodeCount());
 		Set<Node> vergeSet = new HashSet<>();
@@ -236,6 +240,10 @@ public final class TmcpSimulation<T> implements ISimulation {
 		}
 	}
 	
+	/**
+	 * Executes the greedy PMIT algorithm to split the nodes
+	 * in different channels (trees).
+	 */
 	private void greedyPMIT() {
 		for (int level = 1; level <= treeHeight; level++) {
 			List<Node> nodes = getNodesFromLevel(level);
@@ -247,6 +255,11 @@ public final class TmcpSimulation<T> implements ISimulation {
 		}
 	}
 	
+	/**
+	 * TODO
+	 * @param n
+	 * @return
+	 */
 	private int findBestChannel(Node n) {
 		int bestChan = 0;
 		int intVal = getInterferenceValueAfterAdd(n, 0);
@@ -261,6 +274,14 @@ public final class TmcpSimulation<T> implements ISimulation {
 		return bestChan;
 	}
 
+	/**
+	 * Returns the interference value of a channel in case
+	 * node {@code n} is inserted in such tree (channel).
+	 * 
+	 * @param node the node that might be added.
+	 * @param channel the channel's id.
+	 * @return the interference value of a channel (tree) if {@code n} is added.
+	 */
 	private int getInterferenceValueAfterAdd(Node n, int channel) {
 		Set<Node> nis = n.getAttribute("interference_set");
 		Set<Node> cis = graph.getAttribute("channel_" + channel);
@@ -268,16 +289,30 @@ public final class TmcpSimulation<T> implements ISimulation {
 		return Math.max(nis.size(), nis.size());
 	}
 	
+	/**
+	 * Returns the interference value of a channel (tree).
+	 * 
+	 * @param channel the channel's id.
+	 * @return the interference value of a channel (tree).
+	 */
 	private int getInterferenceValue(int channel) {
 		Set<Node> is = graph.getAttribute("channe_" + channel);
 		return is.size();
 	}
 	
+	/**
+	 * Checks if there is any in the tree/channel that is in
+	 * the communication range of {@code n}
+	 * 
+	 * @param n a node.
+	 * @param channel the channel's id.
+	 * @return true of false.
+	 */
 	private boolean canConnect(Node n, int channel) {
 		Set<Node> is = graph.getAttribute("channe_" + channel);
-
+		
 		for (Node m : is) {
-			if (n.getEdgeBetween(m) != null) {
+			if (n.getEdgeBetween(m) != null && dist(n, m) <= commRadius) {
 				return true;
 			}
 		}
@@ -285,6 +320,12 @@ public final class TmcpSimulation<T> implements ISimulation {
 		return false;
 	}
 	
+	/**
+	 * Returns all nodes from the fat tree level {@code level}.
+	 * 
+	 * @param level the fat tree level.
+	 * @return an array list of nodes.
+	 */
 	private List<Node> getNodesFromLevel(int level) {
 		List<Node> nodes = new ArrayList<>();
 		
@@ -314,10 +355,22 @@ public final class TmcpSimulation<T> implements ISimulation {
 		}
 	}
 	
+	private double dist(Node n, Node m) {
+		double nx = n.getAttribute("world_x");
+		double ny = n.getAttribute("world_y");
+		double mx = m.getAttribute("world_x");
+		double my = m.getAttribute("world_y");
+		
+		return Point2D.distance(nx, ny, mx, my);
+	}
+	
 	public Graph getGraph() {
 		return graph;
 	}
 	
+	/**
+	 * Executes the simulation.
+	 */
 	@Override
 	public void run() {
 		
