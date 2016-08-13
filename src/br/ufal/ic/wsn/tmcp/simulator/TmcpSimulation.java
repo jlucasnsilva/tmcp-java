@@ -250,28 +250,65 @@ public final class TmcpSimulation<T> implements ISimulation {
 			nodes.sort(new PmitComparator());
 			
 			for (Node n : nodes) {
-				findBestChannel(n);
+				ChanNode cn    = findBestChannelAndParent(n);
+				int bestChan   = cn.channel;
+				Node father    = cn.node;
+				Set<Node> tree = graph.getAttribute("channel_" + bestChan);
+				
+				if (father != null) {
+					tree.add(n);
+					n.setAttribute("channel", bestChan);
+					n.setAttribute("father", father);
+					
+					n.setAttribute("ui.class", "channel_" + bestChan);
+					n.getEdgeBetween(father).setAttribute("ui.class", "channel_" + bestChan);
+				}
 			}
+		}
+		
+		root.setAttribute("ui.class", "{fill-color: rgb(0,  0,  0);}");
+		root.setAttribute("ui.label", "SINK");
+	}
+	
+	private class ChanNode {
+		public final Node node;
+		public final int  channel;
+		public ChanNode(Node node, int channel) {
+			this.node = node;
+			this.channel = channel;
 		}
 	}
 	
 	/**
-	 * TODO
+	 * Finds the best channel to insert {@node n}. "The criterion is that
+	 * the tree must connect to the node and adding brings the least
+	 * interference to this tree. If multiple trees tie, the tree with
+	 * fewer nodes is chosen." (Yafeng et al, 5.3 The PMIT ALgorithm).
+	 * 
 	 * @param n
 	 * @return
 	 */
-	private int findBestChannel(Node n) {
+	private ChanNode findBestChannelAndParent(Node n) {
+		Node father = root;
 		int bestChan = 0;
 		int intVal = getInterferenceValueAfterAdd(n, 0);
 		
 		for (int chan = 0; chan < nOfChannels; chan++) {
-			if (intVal > getInterferenceValue(chan)
-					&& canConnect(n, chan)) {
-				
+			father = canConnect(n, chan);
+			
+			if (intVal > getInterferenceValue(chan)) {
+				bestChan = chan;
+			} else if (intVal == getInterferenceValue(chan)) {
+				Set<Node> bcis = graph.getAttribute("channel_" + bestChan);
+				Set<Node> cis  = graph.getAttribute("channel_" + chan);
+
+				if (bcis.size() > cis.size()) {
+					bestChan = chan;
+				}
 			}
 		}
 		
-		return bestChan;
+		return new ChanNode(father, bestChan);
 	}
 
 	/**
@@ -286,7 +323,7 @@ public final class TmcpSimulation<T> implements ISimulation {
 		Set<Node> nis = n.getAttribute("interference_set");
 		Set<Node> cis = graph.getAttribute("channel_" + channel);
 		
-		return Math.max(nis.size(), nis.size());
+		return Math.max(nis.size(), cis.size());
 	}
 	
 	/**
@@ -296,28 +333,32 @@ public final class TmcpSimulation<T> implements ISimulation {
 	 * @return the interference value of a channel (tree).
 	 */
 	private int getInterferenceValue(int channel) {
-		Set<Node> is = graph.getAttribute("channe_" + channel);
+		Set<Node> is = graph.getAttribute("channel_" + channel);
 		return is.size();
 	}
 	
 	/**
-	 * Checks if there is any in the tree/channel that is in
-	 * the communication range of {@code n}
+	 * Checks if there is any node in the tree/channel that is in
+	 * the communication range of {@code n}. Then returns such node.
 	 * 
 	 * @param n a node.
 	 * @param channel the channel's id.
-	 * @return true of false.
+	 * @return the node {@code m} to which {@code n} can connect in {@code channel}.
 	 */
-	private boolean canConnect(Node n, int channel) {
-		Set<Node> is = graph.getAttribute("channe_" + channel);
+	private Node canConnect(Node n, int channel) {
+		Set<Node> is = graph.getAttribute("channel_" + channel);
 		
 		for (Node m : is) {
-			if (n.getEdgeBetween(m) != null && dist(n, m) <= commRadius) {
-				return true;
+			if (n.getEdgeBetween(m) != null /*&& dist(n, m) <= commRadius*/) {
+				return m;
 			}
 		}
 		
-		return false;
+		if (n.getEdgeBetween(root) != null) {
+			return root;
+		}
+		
+		return null;
 	}
 	
 	/**

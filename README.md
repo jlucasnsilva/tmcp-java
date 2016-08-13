@@ -3,8 +3,8 @@
 Basic simulation of the algorithm Tree-Based Multichannel Protocol proposed
 in the paper "Efficient Multichannel Communications in Wireless Sensor Networks".
 
-This the part one of the assignment of "Projetos e Aplicações em Redes de Sensores
-(COMP 318, COMP 319 e ECOM 088" at the Universidade Federal de Alagoas).
+This the part one of the assignment of "Projetos e Aplicações em Redes de Sensores"
+(COMP 318, COMP 319 e ECOM 088) at the Universidade Federal de Alagoas.
 
 # Paper
 Efficient Multichannel Communications in Wireless Sensor Networks
