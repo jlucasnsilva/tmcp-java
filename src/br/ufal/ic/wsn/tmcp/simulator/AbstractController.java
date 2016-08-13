@@ -1,8 +1,16 @@
 package br.ufal.ic.wsn.tmcp.simulator;
 
-import java.util.Map;
 
-public interface ISensorController<T> {
-	public void receive(Sensor<T> sender, T message);
-	void execute(Map<Integer, Channel<T>> channels);
+import org.graphstream.graph.Node;
+
+public abstract class AbstractController<T> implements Runnable{
+	
+	public AbstractController(Node node){
+		
+		node.setAttribute("controller", this);
+	}
+	
+	public void receive(Node node, T message){
+		node.setAttribute("message", message);
+	}	
 }
