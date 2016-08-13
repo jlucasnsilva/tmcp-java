@@ -1,11 +1,16 @@
 package br.ufal.ic.wsn.tmcp.simulator;
 
+import java.util.HashSet;
+import java.util.Set;
+
+import org.graphstream.graph.Node;
+
 public class Sensor<T> implements Runnable {
 
 	/**
 	 * Sensor's unique id.
 	 */
-	public final long  id;
+	public final String id;
 
 	/**
 	 * X position on the environment.
@@ -26,21 +31,46 @@ public class Sensor<T> implements Runnable {
 	 * The "software" running in the sensor.
 	 */
 	private ISensorController<T> controller;
+	
+	private Node node;
+	
+	private int chan;
+	
+	private Set<Sensor<T>> neighborhood;
+	
+	private Set<Sensor<T>> intNeighborhood;
+	
+	private Set<Sensor<T>> parents;
+	
+	private int height;
 
-	public Sensor(
-			long id,
-			double x,
-			double y,
-			double radius
-	) throws Exception {
+	Sensor(String id, double x, double y, double radius, Node node, Set<Sensor<T>> neighborhood, Set<Sensor<T>> intNeighborhood) throws Exception {
+		// TODO check arguments
 		this.id = id;
 		this.x  = x;
 		this.y  = y;
 		this.radius = radius;
-		
-		if (radius <= 0) {
-			throw new Exception("The radius must be > 0.");
-		}
+		this.node = node;
+		this.neighborhood = neighborhood;
+		this.intNeighborhood = intNeighborhood;
+		this.parents = new HashSet<>();
+		this.height = Integer.MAX_VALUE;
+	}
+	
+	public void addParent(Sensor<T> p) {
+		parents.add(p);
+	}
+	
+	public void setHeight(int height) {
+		this.height = height;
+	}
+	
+	public int getHeight() {
+		return height;
+	}
+	
+	public Set<Sensor<T>> getNeighbors() {
+		return neighborhood;
 	}
 
 	public void setController(ISensorController<T> controller) {

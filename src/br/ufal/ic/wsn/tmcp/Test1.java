@@ -1,7 +1,5 @@
 package br.ufal.ic.wsn.tmcp;
 
-import org.graphstream.algorithm.generator.Generator;
-import org.graphstream.algorithm.generator.RandomEuclideanGenerator;
 import org.graphstream.graph.Edge;
 import org.graphstream.graph.Graph;
 import org.graphstream.graph.Node;
@@ -9,21 +7,16 @@ import org.graphstream.graph.implementations.SingleGraph;
 
 import br.ufal.ic.wsn.tmcp.simulator.Channels;
 
-public class Main {
-	private static void sleep() {
-        try { Thread.sleep(1000); } catch (Exception e) {}
-    }
+public class Test1 {
 	
-	public static void main(String[] args) {
-		int numOfChans = Channels.MAX_AMOUNT;
+	public static void main(String[] args) throws Exception {
+		int numOfChans = 3; // Channels.MAX;
 		Graph graph1 = new SingleGraph("Tutorial");
 		String nodes = "0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15";
 		
-		graph1.addAttribute("ui.stylesheet", Channels.COLORS);
+		graph1.addAttribute("ui.stylesheet", Channels.STYLES);
 		graph1.setStrict(false);
 		graph1.setAutoCreate(true);
-		
-		graph1.display();
 		
 		int k = 1;
 		for (String nname : nodes.split(" ")) {
@@ -47,8 +40,19 @@ public class Main {
 			//sleep();
 		}
 		
-		graph1.display();
+		graph1.addEdge("1-4", "1", "4").setAttribute("ui.class", "channel_1");
+		graph1.addEdge("4-7", "4", "7").setAttribute("ui.class", "channel_1");
+		graph1.addEdge("7-10", "7", "10").setAttribute("ui.class", "channel_1");
 		
+		graph1.addEdge("2-5", "2", "5").setAttribute("ui.class", "channel_2");
+		graph1.addEdge("5-8", "5", "8").setAttribute("ui.class", "channel_2");
+		graph1.addEdge("8-11", "8", "11").setAttribute("ui.class", "channel_2");
+		
+		graph1.addEdge("3-6", "3", "6").setAttribute("ui.class", "channel_3");
+		graph1.addEdge("6-9", "6", "9").setAttribute("ui.class", "channel_3");
+		graph1.addEdge("9-12", "9", "12").setAttribute("ui.class", "channel_3");
+		
+		graph1.display();
 		/*
 		Graph graph2 = new SingleGraph("Tutorial");
 		Generator g = new RandomEuclideanGenerator();

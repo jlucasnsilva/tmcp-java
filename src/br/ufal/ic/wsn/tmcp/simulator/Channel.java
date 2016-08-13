@@ -40,7 +40,7 @@ public class Channel<T> {
 	public void subscribe(Sensor<T> s) {
 		if (s != null) {
 			Sensor<T> o;
-			double c = Sensors.getInterferenceRadiusCoefficient();
+			double c = Sensors.getInterferenceCoefficient();
 			Set<Sensor<T>> ns = new HashSet<>();
 			Set<Sensor<T>> ins = new HashSet<>();
 
