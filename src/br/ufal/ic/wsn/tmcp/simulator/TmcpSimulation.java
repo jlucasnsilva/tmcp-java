@@ -25,7 +25,7 @@ import org.graphstream.graph.implementations.SingleGraph;
  * 
  * @param <T> the type the message that the sensors send.
  */
-public final class TmcpSimulation<T> implements ISimulation {
+public final class TmcpSimulation<T> implements ISimulation,Attributes {
 
 	/**
 	 * Width and height of the world.
@@ -195,13 +195,13 @@ public final class TmcpSimulation<T> implements ISimulation {
 			Set<Node> ps = new HashSet<>();
 			Set<Node> is = new HashSet<>();
 			
-			n.setAttribute("world_x", x * worldSize); // As x and y in the range [0,1] they
-			n.setAttribute("world_y", y * worldSize); // are converted to world positions
-			n.setAttribute("tree_height", Integer.MAX_VALUE);
-			n.setAttribute("parents", ps);
-			n.setAttribute("channel", 0);
-			n.setAttribute("ui.label", n.getId());
-			n.setAttribute("interference_set", is);
+			n.setAttribute(WORLD_X, x * worldSize); // As x and y in the range [0,1] they
+			n.setAttribute(WORLD_y, y * worldSize); // are converted to world positions
+			n.setAttribute(TREE_HEIGHT, Integer.MAX_VALUE);
+			n.setAttribute(PARENTS, ps);
+			n.setAttribute(CHANNEL, 0);
+			n.setAttribute(UI_LABEl, n.getId());
+			n.setAttribute(INTERFERENCE_SET, is);
 		}
 		
 		/*

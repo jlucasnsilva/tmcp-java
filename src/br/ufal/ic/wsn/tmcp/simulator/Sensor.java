@@ -30,7 +30,7 @@ public class Sensor<T> implements Runnable {
 	/**
 	 * The "software" running in the sensor.
 	 */
-	private ISensorController<T> controller;
+	private AbstractController<T> controller;
 	
 	private Node node;
 	
@@ -73,7 +73,7 @@ public class Sensor<T> implements Runnable {
 		return neighborhood;
 	}
 
-	public void setController(ISensorController<T> controller) {
+	public void setController(AbstractController<T> controller) {
 		this.controller = controller;
 	}
 
@@ -83,7 +83,7 @@ public class Sensor<T> implements Runnable {
 	 * @param sender the sensor the sent the message.
 	 * @param message the payload.
 	 */
-	public void receive(Sensor<T> sender, T message) {
+	public void receive(Node sender, T message) {
 		if (controller != null) {
 			controller.receive(sender, message);
 		}
@@ -97,7 +97,7 @@ public class Sensor<T> implements Runnable {
 	public void run() {
 		if (controller != null) {
 			// TODO
-			controller.execute(null);
+			//controller.execute(null);
 		}
 	}
 }
