@@ -70,12 +70,12 @@ final class GraphBuilder {
 	
 	public static Graph newGrid(int nOfNodes, int nOfChannels) {
 		Graph graph = new SingleGraph("grid");
-		Generator gen = new GridGenerator();
+		Generator gen = new GridGenerator(true, false);
 
 		gen.addSink(graph);
 		gen.begin();
 
-		for(int i=0; i<nOfNodes; i++) {
+		for(int i=0; i<Math.sqrt(nOfNodes); i++) {
 			gen.nextEvents();
 		}
 

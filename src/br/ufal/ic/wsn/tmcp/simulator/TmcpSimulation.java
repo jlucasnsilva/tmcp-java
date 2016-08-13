@@ -3,15 +3,15 @@ package br.ufal.ic.wsn.tmcp.simulator;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import org.graphstream.algorithm.generator.Generator;
-import org.graphstream.algorithm.generator.GridGenerator;
-import org.graphstream.algorithm.generator.RandomEuclideanGenerator;
+import static br.ufal.ic.wsn.tmcp.simulator.Attributes.*;
 import org.graphstream.graph.Edge;
 import org.graphstream.graph.Graph;
 import org.graphstream.graph.Node;
@@ -25,7 +25,7 @@ import org.graphstream.graph.implementations.SingleGraph;
  * 
  * @param <T> the type the message that the sensors send.
  */
-public final class TmcpSimulation<T> implements ISimulation,Attributes {
+public final class TmcpSimulation<T> implements ISimulation {
 
 	/**
 	 * Width and height of the world.
@@ -75,6 +75,8 @@ public final class TmcpSimulation<T> implements ISimulation,Attributes {
 	
 	private EGraphType gtype;
 	
+	private Map<Integer, List<Node>> treeLevels;
+	
 	/**
 	 * Creates new simulation using the TMCP algorithm.
 	 * 
@@ -86,7 +88,7 @@ public final class TmcpSimulation<T> implements ISimulation,Attributes {
 	 * @param intCoefficient interference coefficient. (@code Interference radius = Interference coefficient * Communication Radius}.
 	 * @throws Exception thrown in case of malformed arguments.
 	 */
-	public TmcpSimulation(String name, EGraphType gtype, int worldSize, int nOfChannels, int nOfSensors, double commRadius, double intCoefficient) throws Exception {
+	public TmcpSimulation(String name, EGraphType gtype, int worldSize, int nOfChannels, int nOfSensors, double commRadius, double intCoefficient, int cycles) throws Exception {
 		if (worldSize < 1) {
 			throw new Exception("The world size must be > 0.");
 		}
@@ -120,6 +122,7 @@ public final class TmcpSimulation<T> implements ISimulation,Attributes {
 		this.graph       = new SingleGraph(name);
 		this.treeHeight  = 0;
 		this.gtype       = gtype;
+		this.treeLevels  = new HashMap<>();
 	}
 
 	/**
@@ -134,10 +137,8 @@ public final class TmcpSimulation<T> implements ISimulation,Attributes {
 	
 	public void algorithm() {
 		makeFatTree();
-		System.out.println("Displaying the fat tree");
-		graph.display();
+		// graph.display();
 		greedyPMIT();
-		System.out.println("Displaying the subtrees network");
 		graph.display();
 	}
 	
@@ -146,7 +147,12 @@ public final class TmcpSimulation<T> implements ISimulation,Attributes {
 	 */
 	@Override
 	public void simulate() {
+		for (Node n : graph) {
+			AbstractController<T> c = n.getAttribute("controller");
+			this.executor.execute(c);
+		}
 		
+		while (true);
 	}
 	
 	/**
@@ -231,10 +237,9 @@ public final class TmcpSimulation<T> implements ISimulation,Attributes {
 		
 		for (int i = 0; i < graph.getNodeCount(); i++) {
 			Node n = graph.getNode(i);
-			for (int j = 0; j < graph.getNodeCount(); j++) {
+			for (int j = i + 1; j < graph.getNodeCount(); j++) {
 				Node m = graph.getNode(j);
-				
-				if (dist(n, m) <= intRadius) {
+				if (!n.equals(m) && dist(n, m) <= intRadius) {
 					Set<Node> sn = n.getAttribute("interference_set");
 					Set<Node> sm = m.getAttribute("interference_set");
 					
@@ -252,9 +257,11 @@ public final class TmcpSimulation<T> implements ISimulation,Attributes {
 	private void makeFatTree() {
 		List<Node> verge    = new ArrayList<>(graph.getNodeCount());
 		Set<Node>  vergeSet = new HashSet<>();
+		List<Node>  tLevel   = new ArrayList<>();
 		
 		verge.add(root);
 		vergeSet.add(root);
+		treeLevels.put(0, tLevel);
 		int len = verge.size();
 		for (int i = 0; i < len; i++) {
 			Node n = verge.get(i);
@@ -263,7 +270,6 @@ public final class TmcpSimulation<T> implements ISimulation,Attributes {
 			for (Edge e : n.getEdgeSet()) {
 				Node m = e.getOpposite(n);
 				int mh = m.getAttribute("tree_height");
-				Set<Node> mParents = null;
 				
 				if ( !vergeSet.contains(m) ) {
 					verge.add(m);
@@ -272,13 +278,21 @@ public final class TmcpSimulation<T> implements ISimulation,Attributes {
 				}
 				
 				if (mh > nh) {
-					m.setAttribute("tree_height", nh + 1);
-					mParents = m.getAttribute("parents");
-					treeHeight = nh + 1;
+					Set<Node> mParents = m.getAttribute("parents");
 					mParents.add(n);
+					treeHeight = nh + 1;
+					m.setAttribute("tree_height", treeHeight);
 					
-					n.getEdgeBetween(m).setAttribute("ui.class", "channel_1");
+					//n.getEdgeBetween(m).setAttribute("ui.class", "channel_1");
 				}
+				
+				// adds node to the tree level map
+				tLevel = treeLevels.get(treeHeight);
+				if (tLevel == null) {
+					tLevel = new ArrayList<>();
+					treeLevels.put(treeHeight, tLevel);
+				}
+				tLevel.add(m);
 			}
 		}
 	}
@@ -289,22 +303,24 @@ public final class TmcpSimulation<T> implements ISimulation,Attributes {
 	 */
 	private void greedyPMIT() {
 		for (int level = 1; level <= treeHeight; level++) {
-			List<Node> nodes = getNodesFromLevel(level);
+			List<Node> nodes = treeLevels.get(level);
 			nodes.sort(new PmitComparator());
 			
 			for (Node n : nodes) {
-				ChanNode cn    = findBestChannelAndParent(n);
-				int bestChan   = cn.channel;
-				Node father    = cn.node;
-				Set<Node> tree = graph.getAttribute("channel_" + bestChan);
-				
-				if (father != null) {
+				if ( !n.equals(root) ) {
+					ChanNode cn    = findBestChannelAndParent(n);
+					int bestChan   = cn.channel;
+					Node father    = cn.node;
+					Set<Node> tree = graph.getAttribute("channel_" + bestChan);
+
+					//if (father != null) {
 					tree.add(n);
 					n.setAttribute("channel", bestChan);
 					n.setAttribute("father", father);
-					
+
 					n.setAttribute("ui.class", "channel_" + bestChan);
 					n.getEdgeBetween(father).setAttribute("ui.class", "channel_" + bestChan);
+					//}
 				}
 			}
 		}
@@ -332,24 +348,55 @@ public final class TmcpSimulation<T> implements ISimulation,Attributes {
 	 * @return
 	 */
 	private ChanNode findBestChannelAndParent(Node n) {
-		Node father = root;
+		if (n.equals(root))
+			return null;
+		
+		Set<Node> parents = n.getAttribute(PARENTS);
+		Node      father  = parents.iterator().next();
 		int bestChan = 0;
 		int intVal = getInterferenceValueAfterAdd(n, 0);
 		
-		for (int chan = 0; chan < nOfChannels; chan++) {
-			father = canConnect(n, chan);
+		if ( !parents.contains(root) ) {
+			for (Node p : parents) {
+				int pchan = p.getAttribute(CHANNEL);
+				int intChanVal = getInterferenceValue(pchan);
+				
+				if (intVal > intChanVal) {
+					bestChan = pchan;
+					father = p;
+				} else if (intVal == intChanVal) {
+					Set<Node> bcis = graph.getAttribute("channel_" + bestChan);
+					Set<Node> cis  = graph.getAttribute("channel_" + pchan);
+	
+					if (bcis.size() > cis.size()) {
+						bestChan = pchan;
+						father   = p;
+					}
+				}
+			}
+		} else {
+			// nodes that have root in their parents set, only have root as their
+			// only parent.
+			father = root;
 			
-			if (intVal > getInterferenceValue(chan)) {
-				bestChan = chan;
-			} else if (intVal == getInterferenceValue(chan)) {
-				Set<Node> bcis = graph.getAttribute("channel_" + bestChan);
-				Set<Node> cis  = graph.getAttribute("channel_" + chan);
-
-				if (bcis.size() > cis.size()) {
-					bestChan = chan;
+			for (int pchan = 0; pchan < nOfChannels; pchan++) {
+				int intChanVal = getInterferenceValue(pchan);
+				
+				if (intVal > intChanVal) {
+					bestChan = pchan;
+				} else if (intVal == intChanVal) {
+					Set<Node> bcis = graph.getAttribute("channel_" + bestChan);
+					Set<Node> cis  = graph.getAttribute("channel_" + pchan);
+	
+					if (bcis.size() > cis.size()) {
+						bestChan = pchan;
+					}
 				}
 			}
 		}
+		
+		Set<Node> is = graph.getAttribute("channel_" + bestChan);
+		is.add(n);
 		
 		return new ChanNode(father, bestChan);
 	}
@@ -364,9 +411,8 @@ public final class TmcpSimulation<T> implements ISimulation,Attributes {
 	 */
 	private int getInterferenceValueAfterAdd(Node n, int channel) {
 		Set<Node> nis = n.getAttribute("interference_set");
-		Set<Node> cis = graph.getAttribute("channel_" + channel);
 		
-		return Math.max(nis.size(), cis.size());
+		return Math.max(nis.size(), getInterferenceValue(channel));
 	}
 	
 	/**
@@ -377,7 +423,17 @@ public final class TmcpSimulation<T> implements ISimulation,Attributes {
 	 */
 	private int getInterferenceValue(int channel) {
 		Set<Node> is = graph.getAttribute("channel_" + channel);
-		return is.size();
+		int i = 0;
+		
+		for (Node n : is) {
+			Set<Node> ins = n.getAttribute(INTERFERENCE_SET);
+			
+			if (i < ins.size()) {
+				i = ins.size();
+			}
+		}
+		
+		return i;
 	}
 	
 	/**
@@ -402,25 +458,6 @@ public final class TmcpSimulation<T> implements ISimulation,Attributes {
 		}
 		
 		return null;
-	}
-	
-	/**
-	 * Returns all nodes from the fat tree level {@code level}.
-	 * 
-	 * @param level the fat tree level.
-	 * @return an array list of nodes.
-	 */
-	private List<Node> getNodesFromLevel(int level) {
-		List<Node> nodes = new ArrayList<>();
-		
-		for (Node n : graph) {
-			int depth = n.getAttribute("tree_height");
-			if (depth == level) {
-				nodes.add(n);
-			}
-		}
-		
-		return nodes;
 	}
 
 	private class PmitComparator implements Comparator<Node> {
