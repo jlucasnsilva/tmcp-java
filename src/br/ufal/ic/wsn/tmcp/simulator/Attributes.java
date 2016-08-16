@@ -1,23 +1,13 @@
 package br.ufal.ic.wsn.tmcp.simulator;
 
 public interface Attributes {
+
+	String UI_LABEL = "ui.label";
 	
-	public final String WORLD_X = "world_x";
+	String UI_CLASS = "ui.class";
 
-	public final String WORLD_Y = "world_y";
+	String SENSOR_ATTR_SET = "SetAttributeSet";
 
-	public final String PARENTS = "parents";
-
-	public final String TREE_HEIGHT = "tree_height";
-
-	public final String CHANNEL = "channel";
-
-	public final String UI_LABEL = "ui.label";
-	
-	public final String UI_CLASS = "ui.class";
-
-	public final String INTERFERENCE_SET ="interference_set";
-
-	public final String FATHER = "father";
+	String UI_STYLESHEET = "ui.stylesheet";
 
 }

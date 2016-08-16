@@ -7,7 +7,7 @@ public final class Channels {
 	/**
 	 * The maximum number of channels.
 	 */
-	public final static int MAX = 8;
+	public final static int MAX = 7;
 	
 	/**
 	 * Styles for the GraphStream UI.
