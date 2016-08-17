@@ -1,4 +1,4 @@
-package br.ufal.ic.wsn.tmcp;
+package br.ufal.ic.wsn.tmcp.example;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -6,11 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 
 public class Util {
-	
-	public static void sleep1Sec() {
-        try { Thread.sleep(1000); } catch (Exception e) {}
-    }
-	
+
 	/**
 	 * Read a complete file into a String.
 	 * 
@@ -29,4 +25,5 @@ public class Util {
 		
 		return null;
 	}
+
 }

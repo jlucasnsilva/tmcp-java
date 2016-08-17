@@ -1,4 +1,4 @@
-package br.ufal.ic.wsn.tmcp;
+package br.ufal.ic.wsn.tmcp.example;
 
 import br.ufal.ic.wsn.tmcp.simulator.EGraphType;
 import br.ufal.ic.wsn.tmcp.simulator.TmcpSimulation;
@@ -6,7 +6,7 @@ import br.ufal.ic.wsn.tmcp.simulator.TmcpSimulation;
 public class Main {
 
 	public static void main(String[] args) throws Exception {
-		TmcpSimulation<Object> s;
+		TmcpSimulation<Double> s;
 		TmcpSimulation.Args a = new TmcpSimulation.Args();
 		
 		a.name = "Simulation 1";
@@ -19,7 +19,7 @@ public class Main {
 		a.cycles = 100;
 		a.sleep  = 0;//150;
 		
-		s = new TmcpSimulation<>(a);
+		s = new TmcpSimulation<>(a, new StupidTemperatureControllerFactory());
 
 		s.init();
 		s.execute();

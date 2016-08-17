@@ -1,6 +1,6 @@
 package br.ufal.ic.wsn.tmcp.simulator;
 
-import br.ufal.ic.wsn.tmcp.Util;
+import br.ufal.ic.wsn.tmcp.example.Util;
 
 public final class Channels {
 	

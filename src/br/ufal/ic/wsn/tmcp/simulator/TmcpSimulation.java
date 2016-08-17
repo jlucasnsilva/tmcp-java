@@ -92,6 +92,10 @@ public final class TmcpSimulation<T> implements ISimulation {
 	
 	private int sleepTime;
 
+	private IControllerFactory<T> factory;
+	
+	private ISinkController<T> sinkContoller;
+
 	public static class Args {
 		public String name;
 		public EGraphType graphType;
@@ -115,7 +119,7 @@ public final class TmcpSimulation<T> implements ISimulation {
 	 * @param intCoefficient interference coefficient. (@code Interference radius = Interference coefficient * Communication Radius}.
 	 * @throws Exception thrown in case of malformed arguments.
 	 */
-	public TmcpSimulation(Args a) throws Exception {
+	public TmcpSimulation(Args a, IControllerFactory<T> factory) throws Exception {
 		if (a.worldSize < 1) {
 			throw new Exception("The world size must be > 0.");
 		}
@@ -144,6 +148,10 @@ public final class TmcpSimulation<T> implements ISimulation {
 			throw new Exception("Sleep has to be >= 0.");
 		}
 		
+		if (factory == null) {
+			throw new Exception("There must be a IControllerFactory");
+		}
+		
 		this.name        = a.name;
 		this.worldSize   = a.worldSize;
 		this.nOfChannels = a.nOfChannels;
@@ -152,10 +160,13 @@ public final class TmcpSimulation<T> implements ISimulation {
 		this.intCoefficient = a.intCoefficient;
 		this.gtype      = a.graphType;
 		this.sleepTime  = a.sleep;
+		this.factory    = factory;
 		
 		this.treeHeight = 0;
 		this.treeLevels = new HashMap<>();
 		this.executor   = Executors.newCachedThreadPool();
+		
+		this.sinkContoller = factory.newSinkController(nOfChannels);
 		
 		build();
 	}
@@ -177,14 +188,13 @@ public final class TmcpSimulation<T> implements ISimulation {
 	 */
 	@Override
 	public void execute() {
-		/*
-		for (Node n : graph) {
-			AbstractController<T> c = n.getAttribute("controller");
-			this.executor.execute(c);
-		}
-		
+//		executor.execute(sinkContoller);
+//		
+//		for (Node n : graph) {
+//			executor.execute( n.getAttribute("controller") );
+//		}
+//		
 		while (true);
-		*/
 	}
 
 	/**
@@ -333,7 +343,7 @@ public final class TmcpSimulation<T> implements ISimulation {
 	 */
 	private void greedyPMIT() {
 		Comparator<Node> comparator = new PmitComparator();
-		List<Node>       nodes;
+		List<Node>       nodes = null;
 		
 		for (int level = 1; level <= treeHeight; level++) {
 			nodes = treeLevels.get(level);
@@ -354,6 +364,12 @@ public final class TmcpSimulation<T> implements ISimulation {
 					
 					n.setAttribute(UI_CLASS, "channel_" + bestChan);
 					n.getEdgeBetween(father).setAttribute(UI_CLASS, "channel_" + bestChan);
+					
+//					if ( !father.equals(root) ) {
+//						n.setAttribute("controller", factory.newSensorController(father.getAttribute("controller")));
+//					} else {
+//						n.setAttribute("controller", factory.newSensorController(sinkContoller.getChannelController(bestChan)));
+//					}
 				}
 			}
 		}
