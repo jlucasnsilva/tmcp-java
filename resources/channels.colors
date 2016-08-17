@@ -1,21 +1,20 @@
-node.sink     {fill-color: rgb(255,  0,  0);}
-edge.fat_tree {fill-color: rgb(255,  0,  0);}
+node.sink     {fill-color: red;}
+edge.la_fat_tree {fill-color: red;}
+edge.fat_tree {fill-color: gainsboro;}
 
-node.channel_1 {fill-color: rgb(  0,255,  0);}
-edge.channel_1 {fill-color: rgb(  0,255,  0);}
-node.channel_4 {fill-color: rgb(255,100, 50);}
-edge.channel_4 {fill-color: rgb(255,100, 50);}
-node.channel_7 {fill-color: rgb(255, 50,100);}
-edge.channel_7 {fill-color: rgb(255, 50,100);}
-
-node.channel_2 {fill-color: rgb(100,255, 50);}
-edge.channel_2 {fill-color: rgb(100,255, 50);}
-node.channel_5 {fill-color: rgb( 50,255,100);}
-edge.channel_5 {fill-color: rgb( 50,255,100);}
-node.channel_8 {fill-color: rgb(  0,  0,255);}
-edge.channel_8 {fill-color: rgb(  0,  0,255);}
-
-node.channel_3 {fill-color: rgb( 50,100,255);}
-edge.channel_3 {fill-color: rgb( 50,100,255);}
-node.channel_6 {fill-color: rgb(100, 50,255);}
-edge.channel_6 {fill-color: rgb(100, 50,255);}
+node.channel_0 {fill-color: cornflowerblue;}
+edge.channel_0 {fill-color: cornflowerblue;}
+node.channel_1 {fill-color: darkgreen;}
+edge.channel_1 {fill-color: darkgreen;}
+node.channel_2 {fill-color: gold;}
+edge.channel_2 {fill-color: gold;}
+node.channel_3 {fill-color: aqua;}
+edge.channel_3 {fill-color: aqua;}
+node.channel_4 {fill-color: chartreuse;}
+edge.channel_4 {fill-color: chartreuse;}
+node.channel_5 {fill-color: saddlebrown;}
+edge.channel_5 {fill-color: saddlebrown;}
+node.channel_6 {fill-color: blue;}
+edge.channel_6 {fill-color: blue;}
+node.channel_7 {fill-color: greenyellow;}
+edge.channel_7 {fill-color: greenyellow;}

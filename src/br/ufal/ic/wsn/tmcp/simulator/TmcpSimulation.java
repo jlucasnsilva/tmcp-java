@@ -17,6 +17,8 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import javax.swing.JOptionPane;
+
 import org.graphstream.algorithm.generator.Generator;
 import org.graphstream.graph.Edge;
 import org.graphstream.graph.Graph;
@@ -34,19 +36,24 @@ import org.graphstream.graph.implementations.SingleGraph;
 public final class TmcpSimulation<T> implements ISimulation {
 
 	/**
+	 * Name of the simulation/graph.
+	 */
+	private String name;
+
+	/**
 	 * Width and height of the world.
 	 */
-	private int    worldSize;
+	private int worldSize;
 	
 	/**
 	 * Number of non-overlapping channels.
 	 */
-	private int    nOfChannels;
+	private int nOfChannels;
 	
 	/**
 	 * Number of sensors.
 	 */
-	private int    nOfSensors;
+	private int nOfSensors;
 	
 	/**
 	 * Radius of communication of each sensor.
@@ -83,6 +90,20 @@ public final class TmcpSimulation<T> implements ISimulation {
 	
 	private Map<Integer, List<Node>> treeLevels;
 	
+	private int sleepTime;
+
+	public static class Args {
+		public String name;
+		public EGraphType graphType;
+		public int    worldSize;
+		public int    nOfChannels;
+		public int    nOfSensors;
+		public int    cycles;
+		public double commRadius;
+		public double intCoefficient;
+		public int    sleep;
+	}
+
 	/**
 	 * Creates new simulation using the TMCP algorithm.
 	 * 
@@ -94,99 +115,99 @@ public final class TmcpSimulation<T> implements ISimulation {
 	 * @param intCoefficient interference coefficient. (@code Interference radius = Interference coefficient * Communication Radius}.
 	 * @throws Exception thrown in case of malformed arguments.
 	 */
-	public TmcpSimulation(String name, EGraphType gtype, int worldSize, int nOfChannels, int nOfSensors, double commRadius, double intCoefficient, int cycles) throws Exception {
-		if (worldSize < 1) {
+	public TmcpSimulation(Args a) throws Exception {
+		if (a.worldSize < 1) {
 			throw new Exception("The world size must be > 0.");
 		}
 		
-		if (nOfChannels < 1 || nOfChannels > Channels.MAX) {
+		if (a.nOfChannels < 1 || nOfChannels > Channels.MAX) {
 			throw new Exception("The number of channel must be > 0.");
 		}
 		
-		if (nOfSensors < 1) {
+		if (a.nOfSensors < 1) {
 			throw new Exception("There must exist at least one sensor.");
 		}
 		
-		if (commRadius < 1) {
+		if (a.commRadius < 1) {
 			throw new Exception("Communication radius too short.");
 		}
 		
-		if (name == null || name.equals("")) {
+		if (a.name == null || a.name.equals("")) {
 			throw new Exception("The name can't be null or the empty string.");
 		}
 		
-		if (intCoefficient < 0.1) {
+		if (a.intCoefficient < 0.1) {
 			throw new Exception("Interference coefficient has to be at least 0.1.");
 		}
 		
-		this.worldSize   = worldSize;
-		this.nOfChannels = nOfChannels;
-		this.nOfSensors  = nOfSensors;
-		this.commRadius  = commRadius;
-		this.intCoefficient = intCoefficient;
-		this.executor   = Executors.newCachedThreadPool();
-		this.graph      = new SingleGraph(name);
+		if (a.sleep < 0) {
+			throw new Exception("Sleep has to be >= 0.");
+		}
+		
+		this.name        = a.name;
+		this.worldSize   = a.worldSize;
+		this.nOfChannels = a.nOfChannels;
+		this.nOfSensors  = a.nOfSensors;
+		this.commRadius  = a.commRadius;
+		this.intCoefficient = a.intCoefficient;
+		this.gtype      = a.graphType;
+		this.sleepTime  = a.sleep;
+		
 		this.treeHeight = 0;
-		this.gtype      = gtype;
 		this.treeLevels = new HashMap<>();
+		this.executor   = Executors.newCachedThreadPool();
+		
+		build();
 	}
 
-	/**
-	 * Set up the simulation.
-	 */
-	public void build() {
-		generateGraph();
-		selectRoot();
-		setAttributes();
-		setInterferenceSets();
-	}
-
-	public void algorithm() {
-		makeFatTree();
-		greedyPMIT();
+	public void init() {
 		graph.display();
+		
+		JOptionPane.showMessageDialog(null, "Creating the fat tree.");
+		makeFatTree();
+		
+		JOptionPane.showMessageDialog(null, "Allocating channels.");
+		greedyPMIT();
+		
+		JOptionPane.showMessageDialog(null, "Job done.");
 	}
 
 	/**
 	 * Executes the simulation.
 	 */
 	@Override
-	public void simulate() {
+	public void execute() {
+		/*
 		for (Node n : graph) {
 			AbstractController<T> c = n.getAttribute("controller");
 			this.executor.execute(c);
 		}
 		
 		while (true);
+		*/
+	}
+
+	/**
+	 * Set up the simulation.
+	 */
+	private void build() {
+		generateGraph();
+		selectRoot();
+		setAttributes();
+		setInterferenceSets();
 	}
 	
 	/**
 	 * Creates a graph using the Random Euclidean Generator.
 	 */
 	private void generateGraph() {
-		Generator g = new SensorRandomGenerator(nOfSensors, nOfChannels, worldSize, commRadius);
-		
-		graph = new SingleGraph("TMCP simulation");
-		g.addSink(graph);
-		g.begin();
-		while (g.nextEvents());
-		g.end();
-		
-		/*
-		if (gtype == EGraphType.RANDOM) {
-			graph = GraphBuilder.newRandom(nOfSensors, nOfChannels);
-		} else if (gtype == EGraphType.DOROGOVTSEV_MENDES) {
-			graph = GraphBuilder.newDorogvtsevMendes(nOfSensors, nOfChannels);
-		} else if (gtype == EGraphType.BARABASI_ALBERT) {
-			graph = GraphBuilder.newBarabasiAlbert(nOfSensors, nOfChannels);
-		} else if (gtype == EGraphType.GRID) {
-			graph = GraphBuilder.newGrid(nOfSensors, nOfChannels);
-		} else if (gtype == EGraphType.SMALL_WORLD) {
-			graph = GraphBuilder.newSmallWorld(nOfSensors, nOfChannels);
+		if (gtype == EGraphType.GRID) {
+			graph = GraphBuilder.newGrid(name, nOfSensors, worldSize);
 		} else if (gtype == EGraphType.RANDOM_EUCLIDEAN) {
-			graph = GraphBuilder.newRandomEuclidean(nOfSensors, nOfChannels);
+			graph = GraphBuilder.newRandomEuclidean(name, nOfSensors, commRadius / worldSize);
+		} else if (gtype == EGraphType.CROSS_GRID) {
+			graph = GraphBuilder.newCrossGrid(name, nOfSensors, worldSize);
 		}
-		*/
 	}
 	
 	/**
@@ -289,6 +310,9 @@ public final class TmcpSimulation<T> implements ISimulation {
 					treeHeight = nh + 1;
 					gatt(m).parents.add(n);
 					gatt(m).treeHeight = treeHeight;
+					
+					sleep();
+					
 					e.setAttribute(UI_CLASS, "fat_tree");
 				}
 				
@@ -316,7 +340,7 @@ public final class TmcpSimulation<T> implements ISimulation {
 			nodes.sort(comparator);
 			
 			for (Node n : nodes) {
-				if ( !n.equals(root) ) {
+				if ( !n.equals(root) && gatt(n).father == null ) {
 					ChanNode cn  = findBestChannelAndParent(n);
 					Node father  = cn.node;
 					int bestChan = cn.channel;
@@ -325,6 +349,8 @@ public final class TmcpSimulation<T> implements ISimulation {
 					tree.add(n);
 					gatt(n).channel = bestChan;
 					gatt(n).father  = father;
+					
+					sleep();
 					
 					n.setAttribute(UI_CLASS, "channel_" + bestChan);
 					n.getEdgeBetween(father).setAttribute(UI_CLASS, "channel_" + bestChan);
@@ -481,6 +507,14 @@ public final class TmcpSimulation<T> implements ISimulation {
 		double my = gatt(m).y;
 		
 		return Point2D.distance(nx, ny, mx, my);
+	}
+
+	private void sleep() {
+		try {
+			Thread.sleep(sleepTime);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 	}
 
 	public Graph getGraph() {
